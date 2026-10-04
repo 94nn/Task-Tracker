@@ -1,0 +1,172 @@
+@import 'tailwindcss';
+
+/* Dark mode is controlled by a "dark" class on <html> (set from Settings). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ---------- Design tokens ---------- */
+
+:root {
+  --canvas: #faf8f5;
+  --surface: #ffffff;
+  --surface-muted: #f5f2ee;
+  --line: #ece7e0;
+  --ink: #1d2133;
+  --muted: #61677d;
+  --subtle: #9499ab;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0e1016;
+  --surface: #161921;
+  --surface-muted: #1c2029;
+  --line: #262a36;
+  --ink: #e8e9ef;
+  --muted: #a3a8b9;
+  --subtle: #6c7286;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+}
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* Soft lavender brand colour */
+  --color-brand-50: #f6f4fe;
+  --color-brand-100: #ece8fd;
+  --color-brand-200: #dcd4fb;
+  --color-brand-300: #c2b5f7;
+  --color-brand-400: #a592f0;
+  --color-brand-500: #8a73e6;
+  --color-brand-600: #7258d6;
+  --color-brand-700: #5f47b8;
+  --color-brand-800: #4d3b93;
+  --color-brand-900: #3f3375;
+
+  --shadow-soft: 0 1px 2px rgb(29 33 51 / 0.04), 0 6px 20px -8px rgb(29 33 51 / 0.08);
+  --shadow-lift: 0 2px 4px rgb(29 33 51 / 0.04), 0 16px 36px -12px rgb(29 33 51 / 0.16);
+
+  /* "backwards" (not "both") so hover transforms still work after the animation ends. */
+  --animate-fade-up: fade-up 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+  --animate-fade-in: fade-in 0.2s ease-out both;
+  --animate-scale-in: scale-in 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  --animate-sheet-up: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  --animate-slide-in-left: slide-in-left 0.26s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  --animate-toast-in: toast-in 0.3s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+  --animate-pop: pop 0.3s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes sheet-up {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+  @keyframes pop {
+    0% {
+      transform: scale(0.6);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+}
+
+/* ---------- Base styles ---------- */
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-ink antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+/* Thin, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+/* Respect users who prefer less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
