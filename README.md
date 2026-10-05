@@ -1,6 +1,6 @@
 # Assignment Task Tracker
 
-A calm, modern planner for university students. Track every assignment, break it into subtasks, watch deadlines, and see your overall progress at a glance. It runs entirely in the browser: no account, no server, and your data stays on your device.
+A calm, modern planner for university students. Track every assignment, break it into subtasks, watch deadlines, and see your overall progress at a glance. Sign in with Google to sync your work across devices. There is no server to run: it's a static site on GitHub Pages, with Firebase for accounts and storage.
 
 **Live demo:** `https://USERNAME.github.io/REPOSITORY-NAME/`
 
@@ -20,7 +20,8 @@ A calm, modern planner for university students. Track every assignment, break it
 - **Toast notifications**: shown when you create, update, delete or complete something
 - **Responsive design**: desktop sidebar on large screens; on phones, a bottom tab bar, a slide-out menu and bottom-sheet modals
 - **Accessible**: labelled buttons and form fields, keyboard-friendly dialogs and menus, and support for reduced-motion preferences
-- **Persistent**: everything is saved to `localStorage`. Realistic sample data loads on first launch
+- **Google sign-up & login**: sign in with Gmail and your assignments and settings sync across laptop, tablet and phone, live and offline-friendly (Firebase). Data already in your browser moves into your account on first sign-in
+- **Persistent**: if accounts aren't set up, everything is saved to `localStorage`. Realistic sample data loads on first launch
 
 ## Tech Stack
 
@@ -29,6 +30,7 @@ A calm, modern planner for university students. Track every assignment, break it
 - [Tailwind CSS](https://tailwindcss.com/) v4
 - [React Router](https://reactrouter.com/) (hash routing)
 - [Lucide React](https://lucide.dev/) icons
+- [Firebase](https://firebase.google.com/): Authentication (Google sign-in) and Cloud Firestore (sync)
 - Browser `localStorage`
 - GitHub Pages + GitHub Actions
 
@@ -68,20 +70,24 @@ The project deploys to GitHub Pages automatically through GitHub Actions ([.gith
 
 ```
 .github/workflows/deploy.yml   GitHub Pages deployment
+firestore.rules                Database security rules (paste into Firebase)
 public/                        Static files (favicon)
 src/
 ├── components/
 │   ├── assignments/           Cards, form modal, filters, subtasks, actions menu
+│   ├── auth/                  Route guard and Google button
 │   ├── calendar/              Month calendar grid
 │   ├── dashboard/             Stat cards, progress ring card, deadlines, today's focus
 │   ├── layout/                App shell, sidebar, header, mobile nav, search, notifications
 │   ├── tasks/                 Task row
 │   └── ui/                    Reusable building blocks (Button, Modal, Badge, ProgressBar…)
-├── context/                   App state: assignments, settings, toasts, dialogs
+├── config/firebase.ts         Your Firebase project settings (paste them here)
+├── context/                   App state: auth, assignments, settings, toasts, dialogs
 ├── data/sampleData.ts         First-launch example assignments
-├── hooks/                     useAssignments, useSettings, useToast, useUI
-├── pages/                     Dashboard, Assignments, AssignmentDetails, Tasks, Calendar, Completed, Settings
-├── services/storage.ts        The only module that reads and writes localStorage
+├── hooks/                     useAuth, useAssignments, useSettings, useToast, useUI
+├── pages/                     AuthPage (sign up / log in), Dashboard, Assignments, AssignmentDetails,
+│                              Tasks, Calendar, Completed, Settings
+├── services/                  storage.ts (localStorage), firebase.ts + cloud.ts (sign-in & sync, loaded on demand)
 ├── types/assignment.ts        TypeScript interfaces
 ├── utils/                     Date helpers, assignment logic (stats, sorting, progress)
 ├── App.tsx                    Routes and providers
@@ -105,6 +111,45 @@ src/
 | --- | --- |
 | ![Dark mode](docs/screenshots/dark.png) | ![Mobile](docs/screenshots/mobile.png) |
 
+## Accounts & sync (Google sign-in)
+
+Visitors see a **Sign up** page on their first visit and a **Log in** page after that. Both use "Continue with Google": the first sign-in creates the account. Once signed in, assignments and settings are stored in Cloud Firestore and sync live between devices.
+
+Until you add your own Firebase project, the app runs **without accounts** and stores data in the browser, so everything works before setup. Firebase is only downloaded once it is set up, so it adds nothing to the app until then.
+
+### One-time setup (about 10 minutes, free)
+
+1. **Create a project.** Go to [console.firebase.google.com](https://console.firebase.google.com) → **Create a project** (Google Analytics is optional).
+2. **Turn on Google sign-in.** Go to **Build → Authentication → Get started → Sign-in method → Google → Enable**, choose a support email, and save.
+3. **Allow your website.** Go to **Authentication → Settings → Authorized domains → Add domain** and enter `USERNAME.github.io` (for example `94nn.github.io`). `localhost` is already allowed for local development.
+4. **Create the database.** Go to **Build → Firestore Database → Create database**, pick a location near you, and start in **production mode**.
+5. **Add the security rules.** In Firestore, open the **Rules** tab, replace everything with the contents of [firestore.rules](firestore.rules), and click **Publish**. These rules let each person read and write only their own data.
+6. **Register the web app.** Go to **Project settings** (gear icon) → **General → Your apps → Web (`</>`)**, give it a name (skip Hosting), and copy the `firebaseConfig` values.
+7. **Paste the config** into [src/config/firebase.ts](src/config/firebase.ts), replacing the placeholder values.
+8. Commit and push. The GitHub Actions workflow redeploys, and sign-in is live.
+
+> The Firebase config values are **not secret**. Every Firebase web app sends them to the browser. Your data is protected by the security rules from step 5, so don't skip that step.
+
+### What syncs
+
+Your assignments, subtasks and progress, plus your name, theme, default priority and notification setting.
+
+The free Firebase "Spark" plan is far more than one student (or a whole class) needs.
+
+### Testing locally without a Firebase project
+
+You can run the whole sign-in flow against the [Firebase emulators](https://firebase.google.com/docs/emulator-suite). This needs Java and the Firebase CLI (`npm install -g firebase-tools`):
+
+```bash
+firebase emulators:start --only auth,firestore --project demo-taskly
+# in a second terminal (Git Bash / macOS / Linux):
+VITE_FIREBASE_EMULATOR=true npm run dev
+```
+
+The emulator shows a fake Google sign-in window where you can create test accounts.
+
 ## Data & Privacy
 
-All data lives in your browser's `localStorage` under the keys `att.assignments` and `att.settings`. Clearing your browser data or switching to a different browser or device starts fresh. To get the examples back, use **Settings → Restore sample data**.
+- **Signed in:** your assignments and settings live in Cloud Firestore under `users/{your account id}`, readable only by you (see [firestore.rules](firestore.rules)). Firestore also keeps an offline copy in your browser so the app loads fast and works without a connection.
+- **Without accounts set up:** all data lives in your browser's `localStorage` (`att.assignments`, `att.settings`). Clearing your browser data starts fresh.
+- To get the example assignments back at any time, use **Settings → Restore sample data**.

@@ -9,4 +9,9 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: process.env.BASE_PATH || '/',
   plugins: [react(), tailwindcss()],
+  build: {
+    // Firebase (~600 kB, ~180 kB gzipped) is split into its own file that only
+    // downloads when sign-in is set up, so its size doesn't slow down the main app.
+    chunkSizeWarningLimit: 700,
+  },
 })

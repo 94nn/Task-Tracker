@@ -52,29 +52,29 @@ export function saveAssignments(assignments: Assignment[]): void {
   writeJSON(ASSIGNMENTS_KEY, assignments)
 }
 
-export function addAssignment(assignments: Assignment[], assignment: Assignment): Assignment[] {
-  const next = [assignment, ...assignments]
-  saveAssignments(next)
-  return next
+/**
+ * Removes this browser's local assignments — called after they've been moved into a
+ * new account, so the next person to sign up on this browser starts fresh.
+ */
+export function clearLocalAssignments(): void {
+  try {
+    localStorage.removeItem(ASSIGNMENTS_KEY)
+  } catch {
+    // Storage unavailable — nothing to clear.
+  }
 }
 
-export function updateAssignment(assignments: Assignment[], updated: Assignment): Assignment[] {
-  const next = assignments.map((a) => (a.id === updated.id ? updated : a))
-  saveAssignments(next)
-  return next
+/* ---------- Accounts ---------- */
+
+const HAS_ACCOUNT_KEY = 'att.hasSignedIn'
+
+/** Whether someone has signed in on this browser before (decides: show "Log in" or "Sign up" first). */
+export function hasSignedInBefore(): boolean {
+  return readJSON<boolean>(HAS_ACCOUNT_KEY) === true
 }
 
-export function deleteAssignment(assignments: Assignment[], id: string): Assignment[] {
-  const next = assignments.filter((a) => a.id !== id)
-  saveAssignments(next)
-  return next
-}
-
-/** Replaces everything with fresh sample data. */
-export function resetToSampleData(): Assignment[] {
-  const samples = createSampleAssignments()
-  saveAssignments(samples)
-  return samples
+export function markSignedIn(): void {
+  writeJSON(HAS_ACCOUNT_KEY, true)
 }
 
 /* ---------- Settings ---------- */

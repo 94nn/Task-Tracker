@@ -4,6 +4,7 @@ import { AssignmentFormModal } from '../components/assignments/AssignmentFormMod
 import { SearchPalette } from '../components/layout/SearchPalette'
 import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 import { useAssignments } from '../hooks/useAssignments'
+import { useAuth } from '../hooks/useAuth'
 
 export interface UIContextValue {
   /** Open the form to add a new assignment, optionally with a pre-filled due date. */
@@ -33,7 +34,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const openSearch = useCallback(() => setSearchOpen(true), [])
 
   // Keyboard shortcuts: Ctrl/⌘ + K or "/" to search, "N" for a new assignment.
+  // Only inside the app — not on the sign-up / login pages.
+  const { status } = useAuth()
+  const appOpen = status === 'signed-in' || status === 'disabled'
   useEffect(() => {
+    if (!appOpen) return
     function handleKey(event: KeyboardEvent) {
       const target = event.target as HTMLElement
       const typing = target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
@@ -55,7 +60,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
     }
     document.addEventListener('keydown', handleKey)
     return () => document.removeEventListener('keydown', handleKey)
-  }, [])
+  }, [appOpen])
 
   const value = useMemo(
     () => ({ openCreate, openEdit, confirmDelete, openSearch }),

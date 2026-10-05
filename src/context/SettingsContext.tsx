@@ -1,6 +1,8 @@
-import { createContext, useCallback, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { Settings } from '../types/assignment'
-import { loadSettings, saveSettings } from '../services/storage'
+import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../services/storage'
+import { loadCloud } from '../services/firebase'
+import { useAuth } from '../hooks/useAuth'
 
 export interface SettingsContextValue {
   settings: Settings
@@ -10,15 +12,47 @@ export interface SettingsContextValue {
 export const SettingsContext = createContext<SettingsContextValue | null>(null)
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
+  const { status, user } = useAuth()
+  const uid = status === 'signed-in' ? user?.uid : undefined
   const [settings, setSettings] = useState<Settings>(loadSettings)
+  const latest = useRef(settings)
 
-  const updateSettings = useCallback((changes: Partial<Settings>) => {
-    setSettings((current) => {
-      const next = { ...current, ...changes }
-      saveSettings(next)
-      return next
+  // Signed in: settings come from the account (and update live from other devices).
+  // A copy is still kept locally so the theme applies instantly on the next page load.
+  useEffect(() => {
+    if (!uid) return
+    let cancelled = false
+    let unsubscribe = () => {}
+    loadCloud().then((cloud) => {
+      if (cancelled) return
+      unsubscribe = cloud.subscribeSettings(uid, (saved) => {
+        if (!saved) return
+        const next = { ...DEFAULT_SETTINGS, ...saved }
+        latest.current = next
+        setSettings(next)
+        saveSettings(next)
+      })
     })
-  }, [])
+    return () => {
+      cancelled = true
+      unsubscribe()
+    }
+  }, [uid])
+
+  const updateSettings = useCallback(
+    (changes: Partial<Settings>) => {
+      const next = { ...latest.current, ...changes }
+      latest.current = next
+      setSettings(next)
+      saveSettings(next)
+      if (uid) {
+        loadCloud()
+          .then((cloud) => cloud.saveCloudSettings(uid, next))
+          .catch((error) => console.error('Could not save settings:', error))
+      }
+    },
+    [uid],
+  )
 
   // Apply the theme by toggling the "dark" class on <html>.
   // For "system", follow the operating system and react when it changes.

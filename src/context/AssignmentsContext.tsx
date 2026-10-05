@@ -1,12 +1,17 @@
-import { createContext, useCallback, useMemo, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import type { Assignment, AssignmentInput, Subtask } from '../types/assignment'
 import * as storage from '../services/storage'
 import { normalizeAssignment, statusForProgress, subtaskProgress } from '../utils/assignmentUtils'
 import { createId } from '../utils/id'
 import { useToast } from '../hooks/useToast'
+import { useAuth } from '../hooks/useAuth'
+import { firebaseEnabled, loadCloud } from '../services/firebase'
+import { createSampleAssignments } from '../data/sampleData'
 
 export interface AssignmentsContextValue {
   assignments: Assignment[]
+  /** False until the signed-in account's assignments have loaded. */
+  ready: boolean
   getAssignment: (id: string) => Assignment | undefined
   createAssignment: (input: AssignmentInput) => Assignment
   updateAssignment: (id: string, input: AssignmentInput) => void
@@ -25,14 +30,64 @@ export const AssignmentsContext = createContext<AssignmentsContextValue | null>(
 
 export function AssignmentsProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast()
-  const [assignments, setAssignments] = useState<Assignment[]>(storage.loadAssignments)
+  const { status, user } = useAuth()
+  const uid = status === 'signed-in' ? user?.uid : undefined
+  // Without accounts, data lives in localStorage. With accounts, it loads from the cloud below.
+  const [assignments, setAssignments] = useState<Assignment[]>(() => (firebaseEnabled ? [] : storage.loadAssignments()))
+  const [ready, setReady] = useState(!firebaseEnabled)
 
   // Always holds the latest list, so several updates in a row never overwrite each other.
   const latest = useRef(assignments)
-  const commit = useCallback((next: Assignment[]) => {
-    latest.current = next
-    setAssignments(next)
-  }, [])
+
+  // Signed in: keep the list in sync with Firestore (also picks up changes from other devices).
+  useEffect(() => {
+    if (!uid) return
+    let cancelled = false
+    let unsubscribe = () => {}
+    loadCloud().then((cloud) => {
+      if (cancelled) return
+      unsubscribe = cloud.subscribeAssignments(
+        uid,
+        (list) => {
+          latest.current = list
+          setAssignments(list)
+          setReady(true)
+        },
+        (error) => {
+          console.error('Could not load assignments:', error)
+          toast('Couldn’t load your assignments', { description: 'Check your connection and refresh.', variant: 'danger' })
+          setReady(true)
+        },
+      )
+    })
+    return () => {
+      cancelled = true
+      unsubscribe()
+      latest.current = []
+      setAssignments([])
+      setReady(false)
+    }
+  }, [uid, toast])
+
+  /** Updates the screen immediately, then saves to the cloud (signed in) or localStorage. */
+  const commit = useCallback(
+    (next: Assignment[]) => {
+      const previous = latest.current
+      latest.current = next
+      setAssignments(next)
+      if (uid) {
+        loadCloud()
+          .then((cloud) => cloud.saveAssignmentChanges(uid, previous, next))
+          .catch((error) => {
+          console.error('Could not save:', error)
+          toast('Couldn’t save your change', { description: 'Check your connection and try again.', variant: 'danger' })
+        })
+      } else if (!firebaseEnabled) {
+        storage.saveAssignments(next)
+      }
+    },
+    [uid, toast],
+  )
 
   const find = (id: string) => latest.current.find((a) => a.id === id)
 
@@ -42,7 +97,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       const current = latest.current.find((a) => a.id === id)
       if (!current) return undefined
       const updated = normalizeAssignment(change(current))
-      commit(storage.updateAssignment(latest.current, updated))
+      commit(latest.current.map((a) => (a.id === updated.id ? updated : a)))
       return updated
     },
     [commit],
@@ -65,7 +120,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
         completedAt: null,
       })
-      commit(storage.addAssignment(latest.current, assignment))
+      commit([assignment, ...latest.current])
       toast('Assignment created', { description: assignment.title })
       return assignment
     },
@@ -97,7 +152,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   const deleteAssignment = useCallback(
     (id: string) => {
       const existing = find(id)
-      commit(storage.deleteAssignment(latest.current, id))
+      commit(latest.current.filter((a) => a.id !== id))
       toast('Assignment deleted', { description: existing?.title, variant: 'danger' })
     },
     [commit, toast],
@@ -115,7 +170,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
         tags: [...original.tags],
         createdAt: new Date().toISOString(),
       })
-      commit(storage.addAssignment(latest.current, copy))
+      commit([copy, ...latest.current])
       toast('Assignment duplicated', { description: copy.title, variant: 'info' })
       return copy
     },
@@ -187,12 +242,11 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   )
 
   const resetToSampleData = useCallback(() => {
-    commit(storage.resetToSampleData())
+    commit(createSampleAssignments())
     toast('Sample data restored', { variant: 'info' })
   }, [commit, toast])
 
   const clearAll = useCallback(() => {
-    storage.saveAssignments([])
     commit([])
     toast('All assignments cleared', { variant: 'danger' })
   }, [commit, toast])
@@ -202,6 +256,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   const value = useMemo<AssignmentsContextValue>(
     () => ({
       assignments,
+      ready,
       getAssignment,
       createAssignment,
       updateAssignment,
@@ -217,6 +272,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
     }),
     [
       assignments,
+      ready,
       getAssignment,
       createAssignment,
       updateAssignment,

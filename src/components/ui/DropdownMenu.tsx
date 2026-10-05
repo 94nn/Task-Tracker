@@ -17,9 +17,11 @@ interface DropdownMenuProps {
   }) => ReactNode
   items: MenuItem[]
   align?: 'left' | 'right'
+  /** Open below (default) or above the trigger — use 'top' near the bottom of the screen. */
+  side?: 'top' | 'bottom'
 }
 
-export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuProps) {
+export function DropdownMenu({ trigger, items, align = 'right', side = 'bottom' }: DropdownMenuProps) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -68,7 +70,8 @@ export function DropdownMenu({ trigger, items, align = 'right' }: DropdownMenuPr
           ref={menuRef}
           role="menu"
           className={cn(
-            'absolute top-full z-30 mt-1.5 min-w-44 animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-lift',
+            'absolute z-30 min-w-44 animate-scale-in rounded-xl border border-line bg-surface p-1.5 shadow-lift',
+            side === 'top' ? 'bottom-full mb-1.5' : 'top-full mt-1.5',
             align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left',
           )}
           onClick={(event) => event.stopPropagation()}

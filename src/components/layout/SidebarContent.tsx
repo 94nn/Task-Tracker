@@ -1,8 +1,11 @@
-import { NavLink } from 'react-router'
-import { Keyboard } from 'lucide-react'
+import { NavLink, useNavigate } from 'react-router'
+import { ChevronsUpDown, Keyboard, LogOut, Settings as SettingsIcon } from 'lucide-react'
 import { Logo } from './Logo'
 import { NAV_ITEMS } from './navItems'
 import { Avatar } from '../ui/Avatar'
+import { DropdownMenu } from '../ui/DropdownMenu'
+import { useAuth } from '../../hooks/useAuth'
+import { useToast } from '../../hooks/useToast'
 import { useAssignments } from '../../hooks/useAssignments'
 import { useSettings } from '../../hooks/useSettings'
 import { getAllTasks, isTaskDueToday } from '../../utils/assignmentUtils'
@@ -12,6 +15,9 @@ import { cn } from '../../utils/cn'
 export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const { assignments } = useAssignments()
   const { settings } = useSettings()
+  const { user, signOut } = useAuth()
+  const { toast } = useToast()
+  const navigate = useNavigate()
 
   const counts: Record<string, number> = {
     '/assignments': assignments.filter((a) => a.status !== 'completed').length,
@@ -94,18 +100,61 @@ export function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
 
       <div className="p-3">
-        <NavLink
-          to="/settings"
-          onClick={onNavigate}
-          className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-surface/70"
-          aria-label={`Profile: ${settings.name}. Open settings`}
-        >
-          <Avatar name={settings.name} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold">{settings.name}</p>
-            <p className="text-xs text-subtle">University student</p>
-          </div>
-        </NavLink>
+        {user ? (
+          // Signed in: profile with a menu for Settings and Sign out.
+          <DropdownMenu
+            align="left"
+            side="top"
+            items={[
+              {
+                label: 'Settings',
+                icon: <SettingsIcon className="size-4" />,
+                onSelect: () => {
+                  navigate('/settings')
+                  onNavigate?.()
+                },
+              },
+              {
+                label: 'Sign out',
+                icon: <LogOut className="size-4" />,
+                danger: true,
+                onSelect: async () => {
+                  onNavigate?.()
+                  await signOut()
+                  toast('Signed out', { description: 'See you soon!', variant: 'info' })
+                },
+              },
+            ]}
+            trigger={(props) => (
+              <button
+                type="button"
+                {...props}
+                className="flex w-full items-center gap-3 rounded-2xl p-2.5 text-left transition-colors hover:bg-surface/70"
+                aria-label={`Account: ${user.email}. Open account menu`}
+              >
+                <Avatar name={settings.name} photoURL={user.photoURL} />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{settings.name}</p>
+                  <p className="truncate text-xs text-subtle">{user.email}</p>
+                </div>
+                <ChevronsUpDown className="size-4 shrink-0 text-subtle" aria-hidden />
+              </button>
+            )}
+          />
+        ) : (
+          <NavLink
+            to="/settings"
+            onClick={onNavigate}
+            className="flex items-center gap-3 rounded-2xl p-2.5 transition-colors hover:bg-surface/70"
+            aria-label={`Profile: ${settings.name}. Open settings`}
+          >
+            <Avatar name={settings.name} />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold">{settings.name}</p>
+              <p className="text-xs text-subtle">University student</p>
+            </div>
+          </NavLink>
+        )}
       </div>
     </div>
   )

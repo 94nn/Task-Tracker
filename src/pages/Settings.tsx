@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { Database, Monitor, Moon, RotateCcw, Sun, Trash2 } from 'lucide-react'
+import { Cloud, Database, LogOut, Monitor, Moon, RotateCcw, Sun, Trash2 } from 'lucide-react'
+import { useAuth } from '../hooks/useAuth'
 import type { Priority, Theme } from '../types/assignment'
 import { Card } from '../components/ui/Card'
 import { Button } from '../components/ui/Button'
@@ -17,6 +18,7 @@ export default function Settings() {
   const { settings, updateSettings } = useSettings()
   const { assignments, resetToSampleData, clearAll } = useAssignments()
   const { toast } = useToast()
+  const { user, signOut } = useAuth()
   const [name, setName] = useState(settings.name)
   const [confirm, setConfirm] = useState<'reset' | 'clear' | null>(null)
 
@@ -34,10 +36,42 @@ export default function Settings() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-5">
+      {user && (
+        <Card className="animate-fade-up p-5 sm:p-6">
+          <SectionTitle
+            title="Account"
+            description="Your assignments and settings sync to this Google account on every device you sign in on."
+            icon={<Cloud className="size-4 text-brand-500" aria-hidden />}
+          />
+          <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
+            <Avatar name={user.name} photoURL={user.photoURL} className="size-12" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-bold">{user.name}</p>
+              <p className="truncate text-sm text-muted">{user.email}</p>
+            </div>
+            <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">
+              <span className="size-1.5 rounded-full bg-emerald-400" aria-hidden />
+              Synced
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<LogOut className="size-4" />}
+              onClick={async () => {
+                await signOut()
+                toast('Signed out', { description: 'See you soon!', variant: 'info' })
+              }}
+            >
+              Sign out
+            </Button>
+          </div>
+        </Card>
+      )}
+
       <Card className="animate-fade-up p-5 sm:p-6">
         <SectionTitle title="Profile" description="Your name appears in the greeting and sidebar." />
         <div className="mt-5 flex flex-col gap-4 sm:flex-row sm:items-end">
-          <Avatar name={name || settings.name} className="size-14 text-lg" />
+          <Avatar name={name || settings.name} photoURL={user?.photoURL} className="size-14 text-lg" />
           <div className="flex-1">
             <label htmlFor="settings-name" className="text-sm font-semibold">
               Name
@@ -103,7 +137,7 @@ export default function Settings() {
       <Card className="animate-fade-up p-5 sm:p-6" style={{ animationDelay: '80ms' }}>
         <SectionTitle
           title="Data"
-          description={`Everything is stored privately in this browser. You have ${assignments.length} assignment${
+          description={`${user ? `Synced to ${user.email}.` : 'Everything is stored privately in this browser.'} You have ${assignments.length} assignment${
             assignments.length === 1 ? '' : 's'
           } saved.`}
           icon={<Database className="size-4 text-brand-500" aria-hidden />}
