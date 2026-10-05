@@ -3,7 +3,6 @@
  * Components use the AssignmentsContext / SettingsContext, which call these functions.
  */
 import type { Assignment, Settings } from '../types/assignment'
-import { createSampleAssignments } from '../data/sampleData'
 
 const ASSIGNMENTS_KEY = 'att.assignments'
 const SETTINGS_KEY = 'att.settings'
@@ -35,17 +34,10 @@ function writeJSON(key: string, value: unknown): void {
 
 /* ---------- Assignments ---------- */
 
-/**
- * Loads all assignments. On the very first launch (nothing stored yet) the
- * sample assignments are saved and returned, so the dashboard isn't empty.
- */
+/** Loads all assignments saved in this browser (an empty list on first launch). */
 export function loadAssignments(): Assignment[] {
   const stored = readJSON<Assignment[]>(ASSIGNMENTS_KEY)
-  if (Array.isArray(stored)) return stored
-
-  const samples = createSampleAssignments()
-  saveAssignments(samples)
-  return samples
+  return Array.isArray(stored) ? stored : []
 }
 
 export function saveAssignments(assignments: Assignment[]): void {

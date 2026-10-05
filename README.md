@@ -21,7 +21,7 @@ A calm, modern planner for university students. Track every assignment, break it
 - **Responsive design**: desktop sidebar on large screens; on phones, a bottom tab bar, a slide-out menu and bottom-sheet modals
 - **Accessible**: labelled buttons and form fields, keyboard-friendly dialogs and menus, and support for reduced-motion preferences
 - **Google sign-up & login**: sign in with Gmail and your assignments and settings sync across laptop, tablet and phone, live and offline-friendly (Firebase). Data already in your browser moves into your account on first sign-in
-- **Persistent**: if accounts aren't set up, everything is saved to `localStorage`. Realistic sample data loads on first launch
+- **Persistent**: if accounts aren't set up, everything is saved to `localStorage`. New users start with a clean, empty workspace
 
 ## Tech Stack
 
@@ -83,7 +83,6 @@ src/
 │   └── ui/                    Reusable building blocks (Button, Modal, Badge, ProgressBar…)
 ├── config/firebase.ts         Your Firebase project settings (paste them here)
 ├── context/                   App state: auth, assignments, settings, toasts, dialogs
-├── data/sampleData.ts         First-launch example assignments
 ├── hooks/                     useAuth, useAssignments, useSettings, useToast, useUI
 ├── pages/                     AuthPage (sign up / log in), Dashboard, Assignments, AssignmentDetails,
 │                              Tasks, Calendar, Completed, Settings
@@ -152,4 +151,3 @@ The emulator shows a fake Google sign-in window where you can create test accoun
 
 - **Signed in:** your assignments and settings live in Cloud Firestore under `users/{your account id}`, readable only by you (see [firestore.rules](firestore.rules)). Firestore also keeps an offline copy in your browser so the app loads fast and works without a connection.
 - **Without accounts set up:** all data lives in your browser's `localStorage` (`att.assignments`, `att.settings`). Clearing your browser data starts fresh.
-- To get the example assignments back at any time, use **Settings → Restore sample data**.

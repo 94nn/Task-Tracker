@@ -6,7 +6,6 @@ import { createId } from '../utils/id'
 import { useToast } from '../hooks/useToast'
 import { useAuth } from '../hooks/useAuth'
 import { firebaseEnabled, loadCloud } from '../services/firebase'
-import { createSampleAssignments } from '../data/sampleData'
 
 export interface AssignmentsContextValue {
   assignments: Assignment[]
@@ -22,7 +21,6 @@ export interface AssignmentsContextValue {
   updateSubtask: (assignmentId: string, subtaskId: string, changes: Partial<Omit<Subtask, 'id'>>) => void
   toggleSubtask: (assignmentId: string, subtaskId: string) => void
   deleteSubtask: (assignmentId: string, subtaskId: string) => void
-  resetToSampleData: () => void
   clearAll: () => void
 }
 
@@ -241,11 +239,6 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
     [patch],
   )
 
-  const resetToSampleData = useCallback(() => {
-    commit(createSampleAssignments())
-    toast('Sample data restored', { variant: 'info' })
-  }, [commit, toast])
-
   const clearAll = useCallback(() => {
     commit([])
     toast('All assignments cleared', { variant: 'danger' })
@@ -267,7 +260,6 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       updateSubtask,
       toggleSubtask,
       deleteSubtask,
-      resetToSampleData,
       clearAll,
     }),
     [
@@ -283,7 +275,6 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       updateSubtask,
       toggleSubtask,
       deleteSubtask,
-      resetToSampleData,
       clearAll,
     ],
   )

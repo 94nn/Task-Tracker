@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { Cloud, Database, LogOut, Monitor, Moon, RotateCcw, Sun, Trash2 } from 'lucide-react'
+import { Cloud, Database, LogOut, Monitor, Moon, Sun, Trash2 } from 'lucide-react'
 import { useAuth } from '../hooks/useAuth'
 import type { Priority, Theme } from '../types/assignment'
 import { Card } from '../components/ui/Card'
@@ -16,11 +16,11 @@ import { PRIORITY_LABELS } from '../utils/assignmentUtils'
 
 export default function Settings() {
   const { settings, updateSettings } = useSettings()
-  const { assignments, resetToSampleData, clearAll } = useAssignments()
+  const { assignments, clearAll } = useAssignments()
   const { toast } = useToast()
   const { user, signOut } = useAuth()
   const [name, setName] = useState(settings.name)
-  const [confirm, setConfirm] = useState<'reset' | 'clear' | null>(null)
+  const [confirmClear, setConfirmClear] = useState(false)
 
   function saveName() {
     const trimmed = name.trim()
@@ -143,13 +143,11 @@ export default function Settings() {
           icon={<Database className="size-4 text-brand-500" aria-hidden />}
         />
         <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-          <Button variant="secondary" icon={<RotateCcw className="size-4" />} onClick={() => setConfirm('reset')}>
-            Restore sample data
-          </Button>
           <Button
             variant="secondary"
             icon={<Trash2 className="size-4" />}
-            onClick={() => setConfirm('clear')}
+            onClick={() => setConfirmClear(true)}
+            disabled={assignments.length === 0}
             className="text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-400/10"
           >
             Delete all assignments
@@ -158,19 +156,16 @@ export default function Settings() {
       </Card>
 
       <ConfirmDialog
-        open={confirm !== null}
-        title={confirm === 'reset' ? 'Restore sample data?' : 'Delete all assignments?'}
-        message={
-          confirm === 'reset'
-            ? 'Your current assignments will be replaced with the example assignments. This can’t be undone.'
-            : 'Every assignment and subtask will be permanently removed from this browser. This can’t be undone.'
-        }
-        confirmLabel={confirm === 'reset' ? 'Replace my data' : 'Delete everything'}
-        onCancel={() => setConfirm(null)}
+        open={confirmClear}
+        title="Delete all assignments?"
+        message={`Every assignment and subtask will be permanently removed${
+          user ? ' from your account on all your devices' : ' from this browser'
+        }. This can’t be undone.`}
+        confirmLabel="Delete everything"
+        onCancel={() => setConfirmClear(false)}
         onConfirm={() => {
-          if (confirm === 'reset') resetToSampleData()
-          else clearAll()
-          setConfirm(null)
+          clearAll()
+          setConfirmClear(false)
         }}
       />
     </div>
