@@ -1,5 +1,6 @@
 import { createContext, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Assignment, AssignmentInput, Subtask } from '../types/assignment'
+import type { Assignment, AssignmentInput, Attachment, Subtask } from '../types/assignment'
+import { checkPdf, deleteFile, readFile, saveFile } from '../services/files'
 import * as storage from '../services/storage'
 import { normalizeAssignment, statusForProgress, subtaskProgress } from '../utils/assignmentUtils'
 import { createId } from '../utils/id'
@@ -22,6 +23,19 @@ export interface AssignmentsContextValue {
   toggleSubtask: (assignmentId: string, subtaskId: string) => void
   deleteSubtask: (assignmentId: string, subtaskId: string) => void
   clearAll: () => void
+  /** PDFs currently being uploaded (shown as "Uploading…" until they finish). */
+  uploads: PendingUpload[]
+  /** Uploads PDFs and attaches them to the assignment. Invalid files are skipped with a message. */
+  attachFiles: (assignmentId: string, files: File[]) => Promise<void>
+  removeAttachment: (assignmentId: string, attachmentId: string) => void
+  /** Downloads an attached PDF's contents. */
+  readAttachment: (attachment: Attachment) => Promise<Blob>
+}
+
+export interface PendingUpload {
+  id: string
+  assignmentId: string
+  name: string
 }
 
 export const AssignmentsContext = createContext<AssignmentsContextValue | null>(null)
@@ -115,6 +129,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
         id: createId(),
         progress: 0,
         subtasks: [],
+        attachments: [],
         createdAt: new Date().toISOString(),
         completedAt: null,
       })
@@ -152,8 +167,12 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       const existing = find(id)
       commit(latest.current.filter((a) => a.id !== id))
       toast('Assignment deleted', { description: existing?.title, variant: 'danger' })
+      // Free up the space its PDFs used.
+      for (const file of existing?.attachments ?? []) {
+        deleteFile(uid, file.id).catch((error) => console.error('Could not delete file:', error))
+      }
     },
-    [commit, toast],
+    [commit, toast, uid],
   )
 
   const duplicateAssignment = useCallback(
@@ -166,6 +185,8 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
         title: `${original.title} (copy)`,
         subtasks: original.subtasks.map((s) => ({ ...s, id: createId() })),
         tags: [...original.tags],
+        // PDFs aren't copied: each file belongs to exactly one assignment.
+        attachments: [],
         createdAt: new Date().toISOString(),
       })
       commit([copy, ...latest.current])
@@ -240,9 +261,59 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   )
 
   const clearAll = useCallback(() => {
+    const files = latest.current.flatMap((a) => a.attachments)
     commit([])
     toast('All assignments cleared', { variant: 'danger' })
-  }, [commit, toast])
+    for (const file of files) deleteFile(uid, file.id).catch((error) => console.error('Could not delete file:', error))
+  }, [commit, toast, uid])
+
+  /* ---------- Attached PDFs ---------- */
+
+  const [uploads, setUploads] = useState<PendingUpload[]>([])
+
+  const attachFiles = useCallback(
+    async (assignmentId: string, files: File[]) => {
+      const valid: File[] = []
+      for (const file of files) {
+        const problem = checkPdf(file)
+        if (problem) toast('Couldn’t attach file', { description: problem, variant: 'danger' })
+        else valid.push(file)
+      }
+
+      await Promise.all(
+        valid.map(async (file) => {
+          const upload = { id: createId(), assignmentId, name: file.name }
+          setUploads((list) => [...list, upload])
+          try {
+            // Save the contents first; only then list it on the assignment.
+            await saveFile(uid, upload.id, file)
+            const attachment: Attachment = { id: upload.id, name: file.name, size: file.size, addedAt: new Date().toISOString() }
+            const updated = patch(assignmentId, (a) => ({ ...a, attachments: [...a.attachments, attachment] }))
+            if (updated) toast('PDF attached', { description: file.name })
+            else deleteFile(uid, upload.id).catch(() => {}) // the assignment was deleted meanwhile
+          } catch (error) {
+            console.error('Upload failed:', error)
+            toast('Couldn’t upload PDF', { description: `${file.name} — check your connection and try again.`, variant: 'danger' })
+          } finally {
+            setUploads((list) => list.filter((u) => u.id !== upload.id))
+          }
+        }),
+      )
+    },
+    [patch, toast, uid],
+  )
+
+  const removeAttachment = useCallback(
+    (assignmentId: string, attachmentId: string) => {
+      const file = find(assignmentId)?.attachments.find((f) => f.id === attachmentId)
+      patch(assignmentId, (a) => ({ ...a, attachments: a.attachments.filter((f) => f.id !== attachmentId) }))
+      if (file) toast('PDF removed', { description: file.name, variant: 'danger' })
+      deleteFile(uid, attachmentId).catch((error) => console.error('Could not delete file:', error))
+    },
+    [patch, toast, uid],
+  )
+
+  const readAttachment = useCallback((attachment: Attachment) => readFile(uid, attachment.id), [uid])
 
   const getAssignment = useCallback((id: string) => assignments.find((a) => a.id === id), [assignments])
 
@@ -261,6 +332,10 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       toggleSubtask,
       deleteSubtask,
       clearAll,
+      uploads,
+      attachFiles,
+      removeAttachment,
+      readAttachment,
     }),
     [
       assignments,
@@ -276,6 +351,10 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
       toggleSubtask,
       deleteSubtask,
       clearAll,
+      uploads,
+      attachFiles,
+      removeAttachment,
+      readAttachment,
     ],
   )
 

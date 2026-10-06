@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { ListChecks, User } from 'lucide-react'
+import { ListChecks, Paperclip, User } from 'lucide-react'
 import type { Assignment } from '../../types/assignment'
 import { PriorityBadge, StatusBadge } from '../ui/Badge'
 import { ProgressBar } from '../ui/ProgressBar'
@@ -67,6 +67,12 @@ export function AssignmentCard({ assignment, delay = 0 }: AssignmentCardProps) {
               <ListChecks className="size-3.5" aria-hidden />
               {assignment.subtasks.length > 0 ? `${done}/${assignment.subtasks.length}` : 'No subtasks'}
             </span>
+            {assignment.attachments.length > 0 && (
+              <span className="inline-flex items-center gap-1" title="Attached PDFs">
+                <Paperclip className="size-3.5" aria-hidden />
+                {assignment.attachments.length}
+              </span>
+            )}
             <span>Added {formatTimestamp(assignment.createdAt)}</span>
           </div>
           <TagList tags={assignment.tags} max={2} />

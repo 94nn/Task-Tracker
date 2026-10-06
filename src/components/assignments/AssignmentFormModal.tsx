@@ -5,6 +5,8 @@ import { Modal } from '../ui/Modal'
 import { Button } from '../ui/Button'
 import { Field, Input, Select, Textarea } from '../ui/FormField'
 import { TagInput } from './TagInput'
+import { AddPdfButton, MAX_ATTACHMENTS, PdfChip } from './Attachments'
+import { checkPdf } from '../../services/files'
 import { useAssignments } from '../../hooks/useAssignments'
 import { useSettings } from '../../hooks/useSettings'
 import { PRIORITY_LABELS, STATUS_LABELS, getSubjects } from '../../utils/assignmentUtils'
@@ -65,7 +67,7 @@ function AssignmentForm({
   initialDueDate?: string
   onDone: () => void
 }) {
-  const { assignments, createAssignment, updateAssignment } = useAssignments()
+  const { assignments, createAssignment, updateAssignment, attachFiles } = useAssignments()
   const { settings } = useSettings()
   const navigate = useNavigate()
 
@@ -80,6 +82,10 @@ function AssignmentForm({
     tags: assignment?.tags ?? [],
   }))
   const [errors, setErrors] = useState<Partial<Record<keyof AssignmentInput, string>>>({})
+  // PDFs picked in this form; they upload when the form is saved.
+  const [pdfs, setPdfs] = useState<File[]>([])
+  const [pdfError, setPdfError] = useState<string | null>(null)
+  const existingCount = assignment?.attachments.length ?? 0
 
   function set<K extends keyof AssignmentInput>(key: K, value: AssignmentInput[K]) {
     setValues((v) => ({ ...v, [key]: value }))
@@ -111,11 +117,27 @@ function AssignmentForm({
     }
     if (assignment) {
       updateAssignment(assignment.id, cleaned)
+      if (pdfs.length) attachFiles(assignment.id, pdfs)
     } else {
       const created = createAssignment(cleaned)
+      // PDFs upload in the background; the details page shows "Uploading…" until they're done.
+      if (pdfs.length) attachFiles(created.id, pdfs)
       navigate(`/assignments/${created.id}`)
     }
     onDone()
+  }
+
+  function pickPdfs(files: File[]) {
+    const problems: string[] = []
+    const accepted: File[] = []
+    for (const file of files) {
+      const problem = checkPdf(file)
+      if (problem) problems.push(problem)
+      else if (existingCount + pdfs.length + accepted.length >= MAX_ATTACHMENTS) problems.push(`You can attach up to ${MAX_ATTACHMENTS} PDFs.`)
+      else accepted.push(file)
+    }
+    setPdfs((list) => [...list, ...accepted])
+    setPdfError(problems.length ? [...new Set(problems)].join(' ') : null)
   }
 
   const subjects = getSubjects(assignments)
@@ -218,6 +240,35 @@ function AssignmentForm({
       <Field label="Tags" htmlFor="field-tags" className="sm:col-span-2">
         <TagInput id="field-tags" tags={values.tags} onChange={(tags) => set('tags', tags)} />
       </Field>
+
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold">
+            PDFs <span className="font-normal text-subtle">(optional, up to 5 MB each)</span>
+          </span>
+          <AddPdfButton onPick={pickPdfs} disabled={existingCount + pdfs.length >= MAX_ATTACHMENTS} />
+        </div>
+        {pdfError && (
+          <p className="text-xs font-medium text-rose-500" role="alert">
+            {pdfError}
+          </p>
+        )}
+        {(existingCount > 0 || pdfs.length > 0) && (
+          <ul className="mt-1 grid gap-2 sm:grid-cols-2">
+            {assignment?.attachments.map((file) => (
+              <PdfChip key={file.id} name={file.name} size={file.size} />
+            ))}
+            {pdfs.map((file, i) => (
+              <PdfChip
+                key={`${file.name}-${i}`}
+                name={file.name}
+                size={file.size}
+                onRemove={() => setPdfs((list) => list.filter((_, j) => j !== i))}
+              />
+            ))}
+          </ul>
+        )}
+      </div>
     </form>
   )
 }

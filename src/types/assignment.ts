@@ -12,6 +12,16 @@ export interface Subtask {
   dueDate: string | null
 }
 
+export interface Attachment {
+  /** Also the id of the stored file contents. */
+  id: string
+  name: string
+  /** Size in bytes. */
+  size: number
+  /** ISO timestamp. */
+  addedAt: string
+}
+
 export interface Assignment {
   id: string
   title: string
@@ -26,6 +36,8 @@ export interface Assignment {
   progress: number
   tags: string[]
   subtasks: Subtask[]
+  /** Attached PDFs (details only — the file contents are stored separately, see services/files.ts). */
+  attachments: Attachment[]
   /** ISO timestamp. */
   createdAt: string
   /** ISO timestamp, set when the assignment is marked completed. */

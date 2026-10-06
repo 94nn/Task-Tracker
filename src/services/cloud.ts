@@ -20,10 +20,12 @@ import {
   signOut as firebaseSignOut,
 } from 'firebase/auth'
 import {
+  Bytes,
   collection,
   connectFirestoreEmulator,
   doc,
   getDoc,
+  getDocs,
   initializeFirestore,
   onSnapshot,
   orderBy,
@@ -39,6 +41,7 @@ import {
 import { firebaseConfig } from '../config/firebase'
 import { useFirebaseEmulator } from './firebase'
 import type { Assignment, Settings } from '../types/assignment'
+import { withDefaults } from '../utils/assignmentUtils'
 
 /* ---------- Setup ---------- */
 
@@ -105,7 +108,7 @@ export function subscribeAssignments(
   onError: (error: Error) => void,
 ): Unsubscribe {
   const q = query(collection(db, 'users', uid, 'assignments'), orderBy('createdAt', 'desc'))
-  return onSnapshot(q, (snap) => onData(snap.docs.map((d) => d.data() as Assignment)), onError)
+  return onSnapshot(q, (snap) => onData(snap.docs.map((d) => withDefaults(d.data() as Assignment))), onError)
 }
 
 /**
@@ -162,4 +165,44 @@ export function subscribeSettings(uid: string, onData: (settings: Partial<Settin
 
 export function saveCloudSettings(uid: string, settings: Settings): Promise<void> {
   return setDoc(profileDoc(uid), { settings }, { merge: true })
+}
+
+/* ---------- Attached files (PDFs) ---------- */
+/*
+ * Firestore documents can hold at most 1 MB, so a file is split into ~900 KB pieces:
+ *   users/{uid}/files/{fileId}                 → { chunks, size }
+ *   users/{uid}/files/{fileId}/chunks/{index}  → { data: <binary> }
+ */
+
+const CHUNK_BYTES = 900 * 1024
+const fileDoc = (uid: string, fileId: string) => doc(db, 'users', uid, 'files', fileId)
+const chunkDoc = (uid: string, fileId: string, index: number) => doc(db, 'users', uid, 'files', fileId, 'chunks', String(index))
+
+export async function saveFileData(uid: string, fileId: string, data: Uint8Array): Promise<void> {
+  const chunks = Math.max(1, Math.ceil(data.length / CHUNK_BYTES))
+  // Pieces first, then the summary — so a half-finished upload is never treated as complete.
+  // Two pieces per batch keeps each request well under Firestore's 10 MB limit.
+  for (let i = 0; i < chunks; i += 2) {
+    const batch = writeBatch(db)
+    for (let j = i; j < Math.min(i + 2, chunks); j++) {
+      batch.set(chunkDoc(uid, fileId, j), { data: Bytes.fromUint8Array(data.subarray(j * CHUNK_BYTES, (j + 1) * CHUNK_BYTES)) })
+    }
+    await batch.commit()
+  }
+  await setDoc(fileDoc(uid, fileId), { chunks, size: data.length })
+}
+
+export async function loadFileData(uid: string, fileId: string): Promise<Uint8Array> {
+  const info = await getDoc(fileDoc(uid, fileId))
+  if (!info.exists()) throw new Error('File not found.')
+  const { chunks, size } = info.data() as { chunks: number; size: number }
+  const result = new Uint8Array(size)
+  const pieces = await Promise.all(Array.from({ length: chunks }, (_, i) => getDoc(chunkDoc(uid, fileId, i))))
+  pieces.forEach((piece, i) => result.set((piece.data()?.data as Bytes).toUint8Array(), i * CHUNK_BYTES))
+  return result
+}
+
+export async function deleteFileData(uid: string, fileId: string): Promise<void> {
+  const pieces = await getDocs(collection(db, 'users', uid, 'files', fileId, 'chunks'))
+  await commitInChunks([...pieces.docs.map((d) => (b: WriteBatch) => b.delete(d.ref)), (b) => b.delete(fileDoc(uid, fileId))])
 }

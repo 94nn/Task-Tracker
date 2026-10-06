@@ -10,6 +10,7 @@ A calm, modern planner for university students. Track every assignment, break it
 - **Assignments**: create, edit, duplicate, delete (with confirmation) and view details
 - **Filters and search**: filter by status, priority and subject; sort by due date, priority, progress or recently added; search titles, subjects, descriptions and tags
 - **Subtasks**: checklists with optional due dates, inline rename and delete. Progress is calculated automatically, and an assignment completes itself when every subtask is done
+- **PDF attachments**: attach the brief, rubric or notes when creating or editing an assignment (up to 10 PDFs, 5 MB each). Open them in a new tab from the assignment page. They sync to all your devices
 - **Manual progress**: a slider for assignments without subtasks
 - **Tasks page**: every subtask across all assignments, grouped into Today, Upcoming, All and Completed
 - **Calendar**: a lightweight monthly calendar (no library) with deadline indicators coloured by urgency. Click a day to see what's due or to add an assignment on that date
@@ -86,7 +87,8 @@ src/
 ├── hooks/                     useAuth, useAssignments, useSettings, useToast, useUI
 ├── pages/                     AuthPage (sign up / log in), Dashboard, Assignments, AssignmentDetails,
 │                              Tasks, Calendar, Completed, Settings
-├── services/                  storage.ts (localStorage), firebase.ts + cloud.ts (sign-in & sync, loaded on demand)
+├── services/                  storage.ts (localStorage), firebase.ts + cloud.ts (sign-in & sync, loaded on demand),
+│                              files.ts (PDF attachments)
 ├── types/assignment.ts        TypeScript interfaces
 ├── utils/                     Date helpers, assignment logic (stats, sorting, progress)
 ├── App.tsx                    Routes and providers
@@ -131,7 +133,7 @@ Until you add your own Firebase project, the app runs **without accounts** and s
 
 ### What syncs
 
-Your assignments, subtasks and progress, plus your name, theme, default priority and notification setting.
+Your assignments, subtasks, progress and attached PDFs, plus your name, theme, default priority and notification setting.
 
 The free Firebase "Spark" plan is far more than one student (or a whole class) needs.
 
@@ -149,5 +151,5 @@ The emulator shows a fake Google sign-in window where you can create test accoun
 
 ## Data & Privacy
 
-- **Signed in:** your assignments and settings live in Cloud Firestore under `users/{your account id}`, readable only by you (see [firestore.rules](firestore.rules)). Firestore also keeps an offline copy in your browser so the app loads fast and works without a connection.
+- **Signed in:** your assignments and settings live in Cloud Firestore under `users/{your account id}`, readable only by you (see [firestore.rules](firestore.rules)). Attached PDFs are stored there too, split into ~900 KB pieces (Firestore documents max out at 1 MB); they count toward the free 1 GB, which fits roughly 200+ full-size PDFs. Firestore also keeps an offline copy in your browser so the app loads fast and works without a connection.
 - **Without accounts set up:** all data lives in your browser's `localStorage` (`att.assignments`, `att.settings`). Clearing your browser data starts fresh.

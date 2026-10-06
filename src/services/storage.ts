@@ -3,6 +3,7 @@
  * Components use the AssignmentsContext / SettingsContext, which call these functions.
  */
 import type { Assignment, Settings } from '../types/assignment'
+import { withDefaults } from '../utils/assignmentUtils'
 
 const ASSIGNMENTS_KEY = 'att.assignments'
 const SETTINGS_KEY = 'att.settings'
@@ -37,7 +38,7 @@ function writeJSON(key: string, value: unknown): void {
 /** Loads all assignments saved in this browser (an empty list on first launch). */
 export function loadAssignments(): Assignment[] {
   const stored = readJSON<Assignment[]>(ASSIGNMENTS_KEY)
-  return Array.isArray(stored) ? stored : []
+  return Array.isArray(stored) ? stored.map(withDefaults) : []
 }
 
 export function saveAssignments(assignments: Assignment[]): void {

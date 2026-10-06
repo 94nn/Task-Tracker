@@ -8,6 +8,7 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { AssignmentActions } from '../components/assignments/AssignmentActions'
 import { DueLabel, SubjectChip, urgencyTone } from '../components/assignments/AssignmentBits'
 import { SubtaskList } from '../components/assignments/SubtaskList'
+import { AttachmentsSection } from '../components/assignments/Attachments'
 import { useAssignments } from '../hooks/useAssignments'
 import { useUI } from '../hooks/useUI'
 import { formatLongDate, formatTimestamp } from '../utils/dateUtils'
@@ -105,6 +106,10 @@ export default function AssignmentDetails() {
 
           <Card className="animate-fade-up p-5 sm:p-7" style={{ animationDelay: '60ms' }}>
             <SubtaskList assignment={assignment} />
+          </Card>
+
+          <Card className="animate-fade-up p-5 sm:p-7" style={{ animationDelay: '80ms' }}>
+            <AttachmentsSection assignment={assignment} />
           </Card>
         </div>
 

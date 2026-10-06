@@ -49,6 +49,11 @@ export function statusForProgress(current: Status, progress: number): Status {
   return current
 }
 
+/** Fills in fields that assignments saved by older versions of the app don't have. */
+export function withDefaults(assignment: Assignment): Assignment {
+  return { ...assignment, attachments: assignment.attachments ?? [] }
+}
+
 /**
  * Keeps derived fields consistent. Called before every save.
  * - Progress comes from subtasks when there are any.
@@ -56,7 +61,7 @@ export function statusForProgress(current: Status, progress: number): Status {
  * - completedAt is set / cleared to match the status.
  */
 export function normalizeAssignment(assignment: Assignment): Assignment {
-  const next = { ...assignment }
+  const next = withDefaults(assignment)
 
   if (next.subtasks.length > 0) {
     next.progress = subtaskProgress(next.subtasks)
