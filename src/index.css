@@ -154,6 +154,24 @@
   }
 }
 
+/*
+ * iPhone / iPad Safari gives date fields a built-in minimum width that ignores
+ * width: 100%, so they spill out of narrow columns. Drop Safari's native styling
+ * there so they fit like every other field. (The check below only matches iOS.)
+ */
+@supports (-webkit-touch-callout: none) {
+  input[type='date'] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    line-height: 2.75rem;
+  }
+  input[type='date']::-webkit-date-and-time-value {
+    text-align: left;
+  }
+}
+
 /* Thin, unobtrusive scrollbars */
 * {
   scrollbar-width: thin;

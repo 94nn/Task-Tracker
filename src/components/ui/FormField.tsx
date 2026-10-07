@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '../../utils/cn'
 
 const CONTROL =
-  'w-full rounded-xl border border-line bg-surface px-3.5 text-sm text-ink placeholder:text-subtle transition-colors duration-150 hover:border-subtle/60 focus:border-brand-400 focus:ring-4 focus:ring-brand-400/15 focus:outline-none'
+  'w-full min-w-0 rounded-xl border border-line bg-surface px-3.5 text-sm text-ink placeholder:text-subtle transition-colors duration-150 hover:border-subtle/60 focus:border-brand-400 focus:ring-4 focus:ring-brand-400/15 focus:outline-none'
 
 interface FieldProps {
   label: string
@@ -17,7 +17,7 @@ interface FieldProps {
 
 export function Field({ label, htmlFor, error, hint, required, className, children }: FieldProps) {
   return (
-    <div className={cn('flex flex-col gap-1.5', className)}>
+    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
       <label htmlFor={htmlFor} className="text-sm font-semibold">
         {label}
         {required && <span className="ml-0.5 text-rose-500">*</span>}
